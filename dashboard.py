@@ -419,7 +419,7 @@ def styles_delete():
     return jsonify({"ok": True})
 
 
-# ---------- XYZスイープ（新モデルの儀式） ----------
+# ---------- XYZスイープ（新モデルの品定め） ----------
 # 設定を総当たりで焼いて比較表にする実験装置。X軸・Y軸に model / cfg / steps を割り当て、
 # シード固定で1セル1枚ずつキューに積む。結果は /sweep/<id> の比較ページで見る。
 
@@ -457,9 +457,9 @@ def sweep_start():
     if not (d.get("prompt") or "").strip():
         return jsonify({"error": "プロンプトが空"}), 400
 
-    seed = random.randrange(2**31)  # 儀式内は全セル同シード固定
+    seed = random.randrange(2**31)  # スイープ内は全セル同シード固定
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-    jobname = "".join(c for c in (d.get("job") or "gishiki") if c.isalnum() or c in "-_")[:20] or "gishiki"
+    jobname = "".join(c for c in (d.get("job") or "sweep") if c.isalnum() or c in "-_")[:20] or "sweep"
     sid = f"{stamp}_XYZ-{jobname}"
     sdir = OUTPUT / sid
     sdir.mkdir(parents=True, exist_ok=True)
@@ -483,9 +483,9 @@ def sweep_start():
                 cmd += ["--steps", int(float(axes["steps"]))]
             if d.get("facefix") is False:
                 cmd += ["--no-face-fix"]
-            label = f"儀式 {model}" + (f" cfg{axes['cfg']}" if axes.get("cfg") else "") \
+            label = f"スイープ {model}" + (f" cfg{axes['cfg']}" if axes.get("cfg") else "") \
                     + (f" steps{axes['steps']}" if axes.get("steps") else "")
-            enqueue(cmd, f"gishiki-x{xi}y{yi}", label)
+            enqueue(cmd, f"sweep-x{xi}y{yi}", label)
             cells.append({"x": xi, "y": yi, "model": model,
                           "cfg": float(axes["cfg"]) if axes.get("cfg") else reg[model].get("cfg"),
                           "steps": int(float(axes["steps"])) if axes.get("steps") else reg[model].get("steps"),
@@ -502,7 +502,7 @@ def sweep_start():
 
 @app.get("/sweep/<path:sid>")
 def sweep_page(sid):
-    """儀式の比較表ページ（焼き待ちセルはリロードで埋まる）"""
+    """スイープの比較表ページ（焼き待ちセルはリロードで埋まる）"""
     sj = (OUTPUT / sid / "sweep.json").resolve()
     if not str(sj).startswith(str(OUTPUT.resolve())) or not sj.exists():
         abort(404)
@@ -522,7 +522,7 @@ def sweep_page(sid):
             tds += (f'<td>{img}<div class="meta">{c["model"]}｜CFG {c["cfg"]}｜steps {c["steps"]}<br>'
                     f'<button onclick=\'tune({json.dumps(c["model"])},{c["cfg"]},{c["steps"]})\'>これを当たりに登録</button></div></td>')
         rows += f"<tr><th>{yval}</th>{tds}</tr>"
-    return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>XYZ儀式 {sid}</title>
+    return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>XYZスイープ {sid}</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <style>body{{background:#0f1117;color:#e6e9f0;font-family:-apple-system,sans-serif;padding:20px}}
 h1{{font-size:16px}}.sub{{color:#8b93a7;font-size:12px;margin:6px 0 14px;line-height:1.7}}
@@ -532,13 +532,13 @@ img{{width:220px;display:block;border-radius:6px}}
 .wait{{width:220px;height:322px;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b93a7;font-size:12px;background:#181b24;border-radius:6px}}
 button{{margin-top:4px;padding:5px 10px;border:1px solid #2a2f3d;background:#181b24;color:#e6e9f0;border-radius:6px;cursor:pointer;font-size:11px}}
 button:hover{{background:#7c9cff;color:#0b0d12}}</style></head><body>
-<h1>XYZ儀式: {sid}</h1>
+<h1>XYZスイープ: {sid}</h1>
 <div class="sub">シード {d["seed"]} 固定｜X軸={AXIS_JP[xp]} / Y軸={AXIS_JP[yp]}｜プロンプト: {d["prompt"][:140]}<br>
 「これを当たりに登録」を押すと、そのモデルの既定CFG/ステップが更新されて次回から自動で入る（メモはモデルタブに表示）</div>
 <table><tr><th>{AXIS_JP[yp]}＼{AXIS_JP[xp]}</th>{header}</tr>{rows}</table>
 <script>
 async function tune(model,cfg,steps){{
-  const note=prompt('当たりメモ（models.jsonに残る・モデルタブに表示）','XYZ儀式で当たり判定');
+  const note=prompt('当たりメモ（models.jsonに残る・モデルタブに表示）','XYZスイープで当たり判定');
   if(note===null)return;
   const r=await(await fetch('/api/models/tune',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{model,cfg,steps,note}})}})).json();
   alert(r.ok?model+' の既定を CFG '+cfg+' / steps '+steps+' に更新！次からこの設定が自動で入る':'失敗: '+(r.error||''));
@@ -548,7 +548,7 @@ async function tune(model,cfg,steps){{
 
 @app.post("/api/models/tune")
 def model_tune():
-    """儀式で見つけた当たり設定をモデルの既定値＋メモとしてmodels.jsonに書き込む"""
+    """スイープで見つけた当たり設定をモデルの既定値＋メモとしてmodels.jsonに書き込む"""
     d = request.json or {}
     reg = json.loads(REGISTRY.read_text())
     name = d.get("model")
@@ -626,9 +626,10 @@ def civitai_search():
     url = "https://civitai.com/api/v1/models?" + urllib.parse.urlencode(params)
     # CivitaiのCDNはブラウザ風UA以外を503で弾くことがある
     req = urllib.request.Request(
-        url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
+        url, headers={"User-Agent": "img-forge/1.0 (+https://github.com/kino176222/img-forge)"}
     )
     try:
+        # 15秒返らないのはCivitai API側の実質障害とみなして打ち切る
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.load(r)
     except Exception as e:
@@ -854,7 +855,7 @@ details.adv .inner{padding:0 12px 12px}
     </div>
   </details>
   <details class="adv">
-    <summary title="設定を総当たりで焼いて比較表にする実験装置。新モデルの実力測定と、当たり設定（CFG・ステップ）探しに使う。シードは自動で1個に固定される">XYZスイープ（新モデルの儀式・設定総当たり）</summary>
+    <summary title="設定を総当たりで焼いて比較表にする実験装置。新モデルの実力測定と、当たり設定（CFG・ステップ）探しに使う。シードは自動で1個に固定される">XYZスイープ（新モデルの品定め・設定総当たり）</summary>
     <div class="inner">
       <div class="row" style="grid-template-columns:110px 1fr">
         <div title="比較表の横方向に振る項目。CFG=プロンプトへの従順さ／ステップ=描き込み回数／モデル=絵描きAI本体"><label>X軸（横）</label><select id="swx"><option value="cfg">CFG</option><option value="steps">ステップ</option><option value="model">モデル</option></select></div>
@@ -864,7 +865,7 @@ details.adv .inner{padding:0 12px 12px}
         <div title="比較表の縦方向に振る項目。X軸と別のものを選ぶ。定番は「Y=モデル×X=CFG」（新モデルの品定め）"><label>Y軸（縦）</label><select id="swy"><option value="model">モデル</option><option value="cfg">CFG</option><option value="steps">ステップ</option></select></div>
         <div title="試したい値をカンマ区切りで並べる（空欄=手持ち全モデル）。セル数=X×Yで上限30"><label>Y軸の値（同上）</label><input id="swyv" placeholder="空欄=手持ち全モデル"></div>
       </div>
-      <button class="go" id="swgo" title="本文・画風タグ・サイズは上の設定を使う。1セル1枚×セル数ぶんキューに積む">儀式を始める</button>
+      <button class="go" id="swgo" title="本文・画風タグ・サイズは上の設定を使う。1セル1枚×セル数ぶんキューに積む">スイープを始める</button>
       <div class="hint">できあがりは比較表ページで見る（焼けたセルから順に埋まる・リロードで更新）。いい設定が見つかったら表の「これを当たりに登録」でモデルの既定値＋メモに保存</div>
       <div id="swlast" class="hint"></div>
     </div>
@@ -1075,6 +1076,12 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
 let REG={};
 function updatePrev(){
   const r=REG[$('model').value];
+  // モデルごとの当たり設定を反映する（models.jsonのsteps/cfgが正本）。
+  // ここが無いと「当たりに登録→次回から自動適用」がGUIで成立しない
+  if(r){
+    if(r.steps) $('steps').value=r.steps;
+    if(r.cfg) $('cfg').value=r.cfg;
+  }
   const el=$('mbanner');
   if(r&&r.thumb){
     $('mprev').src=r.thumb;
@@ -1172,7 +1179,7 @@ $('swgo').onclick=async()=>{
     model:$('model').value,width:w,height:h,facefix:$('facefix').checked,job:$('job').value};
   const j=await (await fetch('/api/sweep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
   if(j.error){alert(j.error);return;}
-  $('swlast').innerHTML=`儀式 ${j.id} 投入（${j.cells}セル・待ち行列${j.queued}件）→ <a href="/sweep/${j.id}" target="_blank" style="color:var(--acc)">比較表を開く</a>`;
+  $('swlast').innerHTML=`スイープ ${j.id} 投入（${j.cells}セル・待ち行列${j.queued}件）→ <a href="/sweep/${j.id}" target="_blank" style="color:var(--acc)">比較表を開く</a>`;
 };
 $('go').onclick=async()=>{
   const [w,h]=SIZE.split('x').map(Number);

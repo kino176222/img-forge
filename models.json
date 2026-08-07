@@ -1,5 +1,5 @@
 {
-  "_comment": "モデル台帳。source: hf-diffusers(HuggingFaceから初回自動DL) / hf-single(単一safetensors) / local(手元のファイル)。sampler/cfg/stepsは配布元の推奨値で、generate.pyの既定値になる。hf-diffusersのモデルは初回生成時に自動でダウンロードされる（事前準備は不要）。",
+  "_comment": "モデル台帳。source: hf-diffusers(HuggingFaceから初回自動DL) / hf-single(単一safetensors) / local(手元のファイル)。sampler/cfg/stepsは配布元の推奨値で、generate.pyの既定値になる。hf-diffusersのモデルは初回生成時に自動でダウンロードされる（事前準備は不要）。 licenseは2026-08-07時点で配布ページを確認した内容。最終判断は必ず配布元のページを見ること。",
   "femix-hassaku": {
     "label": "FeMix HassakuXL v18（甘め濃いめ・商用フルOK）★見せる用の既定",
     "source": "hf-diffusers",
@@ -11,11 +11,11 @@
     "cfg": 5.5,
     "steps": 28,
     "popularity": "DL 1.2万・👍500（Civitai・2026-08-02時点）",
-    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/9530fbe2-49ae-4040-bd81-91c0228134d9/original=true/98911810.jpeg",
-    "page": "https://civitai.com/models/1384794"
+    "page": "https://civitai.com/models/1384794",
+    "license": "Fair AI Public License 1.0-SD（生成画像の商用利用: 可）"
   },
   "nova-anime": {
-    "label": "Nova Anime XL ilV7（Illustrious系の横綱・DL45万）",
+    "label": "Nova Anime XL ilV7（Illustrious系の定番・⚠生成画像の商用利用は不可）",
     "source": "hf-diffusers",
     "path": "votepurchase/novaAnimeXL_ilV70",
     "quality": "masterpiece, best quality, very aesthetic, absurdres",
@@ -25,8 +25,8 @@
     "cfg": 5.5,
     "steps": 28,
     "popularity": "DL 45.4万・👍1.9万（Civitai・2026-08-02時点）",
-    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c2ac76e4-8bcb-48c0-abde-a8594288bfef/original=true/130519340.jpeg",
-    "page": "https://civitai.com/models/376130"
+    "page": "https://civitai.com/models/376130",
+    "license": "Fair AI Public License 1.0-SD ＋作者による追記（⚠ 生成画像の商用利用は不可・クレジット要）"
   },
   "animagine": {
     "label": "Animagine XL 4.0（濃いめの塗り・スキルカードの画風）",
@@ -39,7 +39,7 @@
     "cfg": 6.0,
     "steps": 26,
     "popularity": "DL 9.2万・👍4.6千（Civitai・2026-08-02時点）",
-    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/44382db0-b992-4058-b8b1-369a58cc2604/original=true/57571454.jpeg",
-    "page": "https://civitai.com/models/1188071"
+    "page": "https://civitai.com/models/1188071",
+    "license": "CreativeML Open RAIL++-M（生成画像の商用利用: 可・用途制限あり）"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "けふのうた夜風": {
+  "夜と蛍": {
     "model": "femix-hassaku",
     "loras": [],
     "styleTags": "night, moonlight, fireflies, blue theme, soft lighting",
@@ -30,7 +30,7 @@
     "negative": ""
   },
   "透明感すっぴん": {
-    "model": "noobai",
+    "model": "femix-hassaku",
     "loras": [],
     "styleTags": "soft lighting, backlighting, light particles, muted colors",
     "negative": ""

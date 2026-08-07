@@ -1,26 +1,22 @@
 {
- "pixel-art": {
-  "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0770e5fc-4260-4e3c-a0ee-bf2253028e9f/original=true/1918193.jpeg",
-  "page": "https://civitai.com/models/120096",
-  "desc": "ドット絵化。レトロゲーム風のピクセルアートになる",
-  "base": "SDXL用"
- },
- "watercolor": {
-  "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/87707160-5b9a-44c9-8e24-f7d68e4eb843/original=true/1849189.jpeg",
-  "page": "https://civitai.com/models/121538",
-  "desc": "水彩画タッチ。にじみのある淡い塗りになる（SD1.5世代だが8/2のA/B実測で効きを確認済み）",
-  "base": "SD1.5用・実測OK"
- },
- "line-manga": {
-  "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/352d8e37-caf7-43ef-8092-10137f478dee/original=true/120531862.jpeg",
-  "page": "https://civitai.com/models/127018",
-  "desc": "モノクロ線画・漫画原稿風。ペン画＋トーンの雰囲気",
-  "base": "SDXL用"
- },
- "3d-render": {
-  "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/8d6a0cca-69a7-4c16-8d27-4d1b5000424b/original=true/32646642.jpeg",
-  "page": "https://civitai.com/models/742211",
-  "desc": "3DCGレンダー風。フィギュアっぽい立体質感になる（8/2のA/B実測で効きを確認済み）",
-  "base": "系統不明・実測OK"
- }
+  "pixel-art": {
+    "page": "https://civitai.com/models/120096",
+    "desc": "ドット絵化。レトロゲーム風のピクセルアートになる",
+    "base": "SDXL用"
+  },
+  "watercolor": {
+    "page": "https://civitai.com/models/121538",
+    "desc": "水彩画タッチ。にじみのある淡い塗りになる（SD1.5世代だが作者のA/B実測で効果を確認済み）",
+    "base": "SD1.5用・実測OK"
+  },
+  "line-manga": {
+    "page": "https://civitai.com/models/127018",
+    "desc": "モノクロ線画・漫画原稿風。ペン画＋トーンの雰囲気",
+    "base": "SDXL用"
+  },
+  "3d-render": {
+    "page": "https://civitai.com/models/742211",
+    "desc": "3DCGレンダー風。フィギュアっぽい立体質感になる（8/2のA/B実測で効きを確認済み）",
+    "base": "系統不明・実測OK"
+  }
 }

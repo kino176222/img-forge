@@ -17,12 +17,41 @@ REGISTRY = FORGE / "models.json"
 AUX = Path(os.path.expanduser("~/AI-Models/aux"))
 LORA_DIR = Path(os.path.expanduser("~/AI-Models/lora"))
 ESRGAN_PATH = AUX / "RealESRGAN_x4plus_anime_6B.pth"
-FACE_YOLO_PATH = AUX / "face_yolov8n.pt"
+# 補助モデルの配布元。初回に無ければここから取りに行く（各数MB〜18MB）。
+# 落とせなくても本体の生成は続行し、その機能だけ無効化する（読者環境を止めないため）
+AUX_SOURCES = {
+    ESRGAN_PATH: ("アニメ用GAN拡大モデル",
+                  "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/"
+                  "RealESRGAN_x4plus_anime_6B.pth"),
+}
 # clip_skipは渡さない: diffusersのSDXL実装は最初からpenultimate層（A1111のClip skip 2相当）を使う。
 # 追加でclip_skipを渡すと層がさらにズレて品質劣化・黒画像の原因になる（2026-08-02実測）
 CLIP_SKIP = None
 # SDXL純正VAEはfp16でNaN→黒画像を出すことがある。修正版VAEに差し替えるのが定石
 VAE_FIX = "madebyollin/sdxl-vae-fp16-fix"
+
+
+def ensure_aux(path):
+    """補助モデルが無ければ取得する。取れたらTrue、取れなければFalse（呼び側で機能を落とす）。"""
+    if path.exists():
+        return True
+    label, url = AUX_SOURCES[path]
+    print(f"[img-forge] {label}が未取得。ダウンロードします（初回のみ）→ {path}")
+    try:
+        import urllib.request
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".part")
+        with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
+            while chunk := r.read(1 << 20):
+                f.write(chunk)
+        tmp.rename(path)
+        print(f"[img-forge] {label}を取得しました（{path.stat().st_size / 1e6:.1f}MB）")
+        return True
+    except Exception as e:
+        print(f"[img-forge] ⚠ {label}を取得できませんでした（{e}）。この機能はスキップします。\n"
+              f"           手動で置く場合はここへ: {path}\n"
+              f"           入手先: {url}")
+        return False
 
 
 def load_registry():
@@ -84,6 +113,8 @@ class GanUpscaler:
 
     def _load(self):
         import torch
+        if not ensure_aux(ESRGAN_PATH):
+            raise FileNotFoundError("GAN拡大モデルが無い")  # 呼び側でLANCZOSへフォールバック
         from spandrel import ModelLoader
         self.model = ModelLoader().load_from_file(str(ESRGAN_PATH))
         self.model.eval()
@@ -119,22 +150,33 @@ class FaceFixer:
         from diffusers import AutoPipelineForInpainting
         self.pipe = AutoPipelineForInpainting.from_pipe(base_pipe)  # 重み共有・追加メモリなし
         self.torch = torch_mod
-        from ultralytics import YOLO
-        self.yolo = YOLO(str(FACE_YOLO_PATH))
+        # 顔検出はMITライセンスのimgutilsを使う。
+        # ultralyticsはAGPL-3.0で、importしたまま本体をMITで配ると表示が事実と食い違う
+        from imgutils.detect.face import detect_faces
+        self._detect_faces = detect_faces
 
     def fix(self, img, prompt, negative, cfg_scale, steps, seed):
         from PIL import Image as PILImage, ImageDraw
-        res = self.yolo.predict(img, conf=0.3, verbose=False)
+        # 返り値は [((x1, y1, x2, y2), ラベル, 信頼度), ...]
+        # 検出器が動かない環境（Python 3.14ではimgutilsが内部でast.Strを使い失敗する）でも
+        # 生成そのものは止めない。顔補正だけスキップする
+        try:
+            res = self._detect_faces(img, conf_threshold=0.3)
+        except Exception as e:
+            if not getattr(self, "_warned", False):
+                print(f"[img-forge] ⚠ 顔検出が使えないため顔補正をスキップします（{type(e).__name__}: {e}）\n"
+                      f"           Python 3.13以前の環境では動作します（--no-face-fix で警告を消せます）")
+                self._warned = True
+            return img, 0
         boxes = []
         img_area = img.width * img.height
-        for r in res:
-            for b in r.boxes.xyxy.cpu().numpy():
-                x1, y1, x2, y2 = map(float, b[:4])
-                area = (x2 - x1) * (y2 - y1)
-                # 極小(ノイズ)と巨大(顔アップ絵)はスキップ
-                if area < img_area * 0.002 or area > img_area * 0.45:
-                    continue
-                boxes.append((x1, y1, x2, y2))
+        for (x1, y1, x2, y2), _label, _score in res:
+            x1, y1, x2, y2 = map(float, (x1, y1, x2, y2))
+            area = (x2 - x1) * (y2 - y1)
+            # 極小(ノイズ)と巨大(顔アップ絵)はスキップ
+            if area < img_area * 0.002 or area > img_area * 0.45:
+                continue
+            boxes.append((x1, y1, x2, y2))
         if not boxes:
             return img, 0
         mask = PILImage.new("L", img.size, 0)
@@ -261,7 +303,12 @@ def main():
         from diffusers import StableDiffusionXLImg2ImgPipeline
         hires_pipe = StableDiffusionXLImg2ImgPipeline(**pipe.components)
         gan = GanUpscaler()
-    face_fixer = None if args.no_face_fix else FaceFixer(pipe, torch)
+    face_fixer = None
+    if not args.no_face_fix:
+        try:
+            face_fixer = FaceFixer(pipe, torch)
+        except Exception as e:
+            print(f"[img-forge] ⚠ 顔レタッチを初期化できませんでした（{e}）。顔補正なしで続行します")
 
     # 微調整ガチャ（--vary）: 指定画像を出発点に、低denoiseのimg2imgで兄弟を量産する。
     # 構図・色は元画像から引き継がれ、シード違いで細部だけ変わる（Fooocusの"Vary"と同方式）。
