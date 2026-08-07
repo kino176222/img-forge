@@ -41,7 +41,8 @@ Apple Silicon（M1以降）のMacで、Stable Diffusion系の画像生成を**�
 
 > 「こういうイメージで100枚焼いといて」
 
-と日本語で頼むと、プロンプトを100本考えるところからバッチ投入まで全部やってくれます。
+と日本語で頼むと、プロンプトを100本考えるところからバッチ投入まで全部やってくれます（そのためのスキルを同梱しています → [AIエージェントに操作させる](#aiエージェントに操作させるおすすめ)）。
+
 **焼くのが無料だから、数打てば当たるを正面からやれる**——これがこの道具の一番おいしいところです。
 
 ---
@@ -59,7 +60,9 @@ img-forge/
 ├── fetch_model.py    … モデル追加ツール
 ├── models.json       … モデル台帳（当たり設定はここに入っています）
 ├── styles.json       … スタイル（絵柄プリセット）
-└── requirements.txt  … 依存パッケージ
+├── requirements.txt  … 依存パッケージ
+└── skills/
+    └── local-image-gen/  … AIエージェント用スキル（後述・任意）
 ```
 
 ### 2. Pythonの環境を作る
@@ -76,40 +79,114 @@ PyTorchなど大きいものが入るので、回線によっては10分ほど�
 
 > **ここが最短ルート**: このフォルダごとClaude CodeなどのAIエージェントに読ませて「READMEの通りにセットアップして」と頼むと、たいてい全部やってくれます。
 
-### 3. モデルを1本ダウンロードする
+### 3. 1枚焼いてみる（モデルの準備は要りません）
 
-**モデル本体は配布物に含まれていません**（サイズと権利の都合です）。各自でダウンロードしてください。
+**モデルのダウンロード作業は不要です。** 初回の生成時に自動で取得されます。
 
 ```bash
-# 台帳に登録済みのモデルを落とす例
-.venv/bin/python fetch_model.py --help
+.venv/bin/python generate.py -m femix-hassaku -p "1girl, solo, gentle smile, cafe" -c 1
 ```
 
-`models.json` には作者が使っているモデルが登録済みなので、そこから好きなものを選べます。
-初めてなら、甘めで濃いめの塗りの **FeMix HassakuXL** あたりが扱いやすいです。
+**初回だけ、モデルのダウンロードで5〜15分ほど止まります**（6〜7GB）。これは正常です。2回目以降はキャッシュから読むので、待ち時間は数十秒になります。
 
-モデルの実体は `~/AI-Models/` に置かれます。
+成功すると、こう表示されます。
 
-### 4. 起動する
+```
+[img-forge] model=femix-hassaku sampler=euler_a steps=28 cfg=5.5 ... total=1枚 out=.../output/20260807_0936_gen
+[img-forge] モデル読み込み 51s
+[img-forge] 1/1 femix-hassaku_p00_s1999503178.png (101s)
+[img-forge] 生成完走 1枚 / 152s → .../output/20260807_0936_gen
+```
+
+`output/` の中に画像ができていれば成功です。
+
+> プロンプトは**本文タグだけ**渡してください。「masterpiece, best quality」のような品質タグと、ネガティブプロンプトは `models.json` から自動で足されます。二重に書く必要はありません。
+
+**最初から入っているモデル**（すべて自動ダウンロード対応）
+
+- `femix-hassaku` — 甘め・濃いめの塗り。**迷ったらこれ**
+- `nova-anime` — Illustrious系の定番。画面の情報量が多い
+- `animagine` — 濃いめの塗り。キャラ立ち絵向き
+
+### 4. ダッシュボードを開く
 
 ```bash
 .venv/bin/python dashboard.py
 ```
 
-ブラウザで **http://localhost:3942** を開けば、それがダッシュボードです。
+ブラウザで **http://localhost:3942** を開けば、それがダッシュボードです。生成・レビュー・モデル管理が全部ここでできます。
 
 > `Address already in use` と出たら、そのポートを他のアプリが使っています。別のポートで起動してください。
 > ```bash
 > IMG_FORGE_PORT=4000 .venv/bin/python dashboard.py
 > ```
 
-コマンドラインだけで焼きたいときはこちら。
+---
+
+## モデルを増やす
+
+好みの絵柄を足したくなったときの話です。**セットアップの段階では読まなくて大丈夫です。**
+
+### いちばんラクな方法: ダッシュボードから探す
+
+ダッシュボードの**モデルタブ**にCivitaiのカタログ検索が付いています。気になるモデルを見つけて「追加」を押すだけで、ダウンロードと台帳への登録が終わります。
+
+### コマンドで追加する
+
+Hugging Faceにあるモデルなら、こう追加します。
 
 ```bash
-.venv/bin/python generate.py -m femix-hassaku -p "1girl, solo, gentle smile, cafe" -c 4
+.venv/bin/python fetch_model.py \
+  --name mymodel \
+  --hf-repo <ユーザー名>/<リポジトリ名> \
+  --label "表示名（お好みで）"
 ```
 
-> プロンプトは**本文タグだけ**渡してください。品質タグとネガティブは `models.json` から自動で足されます。
+すでに手元に `.safetensors` ファイルがある場合は、登録だけできます。
+
+```bash
+.venv/bin/python fetch_model.py --name mymodel --local ~/AI-Models/mymodel.safetensors
+```
+
+モデルの実体は `~/AI-Models/` に置かれます。
+
+### 追加するとき、配布ページで必ず見るもの
+
+1. **ライセンス** — 商用利用の可否。生成画像を仕事に使うなら必須の確認です
+2. **推奨の品質タグ** — あれば `--quality "..."` に渡します
+3. **V-prediction かどうか** — v-pred版なら `--vpred` を付けます。**これを間違えると灰色の壊れた絵しか出ません**
+
+### Civitaiから直接落とす場合（ログインが必要なモデルのみ）
+
+Civitaiのダウンロードは認証を求められることがあります。その場合だけ、ご自身のAPIキーを環境変数に入れてください。
+
+```bash
+export CIVITAI_TOKEN="あなたのキー"   # civitai.com/user/account で発行
+```
+
+> **先にHugging Faceのミラーを探すほうが早いです。** 人気モデルは有志がミラーしていることが多く、その場合は認証が要りません。
+> `https://huggingface.co/api/models?search=<モデル名>` で検索できます。
+
+---
+
+## AIエージェントに操作させる（おすすめ）
+
+`skills/local-image-gen/` に、**Claude Code などのAIエージェント用のスキル**を同梱しています。
+
+これを自分のスキル置き場（Claude Codeなら `~/.claude/skills/`）に**フォルダごとコピー**すると、
+
+> 「和風で涼しげなイメージで50枚焼いといて」
+
+のように日本語で頼めるようになります。プロンプトを50本考えるところから、バッチ実行、完了報告までをAIがやってくれます。
+
+```bash
+cp -R skills/local-image-gen ~/.claude/skills/
+```
+
+フォルダ名は `local-image-gen` のまま変えないでください（中の設定と一致している必要があります）。
+img-forgeを `~/Developer/img-forge` 以外に置いた場合は、AIに「img-forgeは〇〇に置いたのでスキルのパスを直して」と頼めば済みます。
+
+**プロンプトを自分で書かなくてよくなる**、というのがこの道具の一番おいしい使い方です。
 
 ---
 
