@@ -1465,7 +1465,7 @@ function licClass(t){
   // 可の判定は「商用利用: 可」の形に限定する
   if(/不可|禁止|non-?commercial/i.test(t)) return 'ng';
   if(/要確認|不明|明示なし|確認すること/.test(t)) return 'unk';
-  if(/商用利用\s*[:：]?\s*可|商用利用は可|commercial use is allowed/i.test(t)) return 'ok';
+  if(/商用利用[ 　]*[:：]?[ 　]*可|商用利用は可|commercial use is allowed/i.test(t)) return 'ok';
   return 'unk';
 }
 function licShort(t){
