@@ -1,0 +1,38 @@
+{
+  "けふのうた夜風": {
+    "model": "femix-hassaku",
+    "loras": [],
+    "styleTags": "night, moonlight, fireflies, blue theme, soft lighting",
+    "negative": ""
+  },
+  "水彩やわらか": {
+    "model": "femix-hassaku",
+    "loras": [],
+    "styleTags": "watercolor (medium), soft lighting, pastel colors",
+    "negative": ""
+  },
+  "レトロ90s": {
+    "model": "femix-hassaku",
+    "loras": [],
+    "styleTags": "retro artstyle, 1990s (style), film grain",
+    "negative": ""
+  },
+  "フラットポップ": {
+    "model": "femix-hassaku",
+    "loras": [],
+    "styleTags": "flat color, limited palette, thick outline",
+    "negative": ""
+  },
+  "シネマ濃厚": {
+    "model": "femix-hassaku",
+    "loras": [],
+    "styleTags": "cinematic lighting, chiaroscuro, dramatic lighting, high contrast",
+    "negative": ""
+  },
+  "透明感すっぴん": {
+    "model": "noobai",
+    "loras": [],
+    "styleTags": "soft lighting, backlighting, light particles, muted colors",
+    "negative": ""
+  }
+}

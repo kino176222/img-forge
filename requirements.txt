@@ -1,0 +1,25 @@
+# img-forge 依存パッケージ（Apple Silicon Mac / Python 3.12 で動作確認）
+# インストール: pip install -r requirements.txt
+#
+# バージョンは作者の動作確認時点のもの。新しい版で動かないときは、
+# まずこの数字に合わせて固定すると原因の切り分けが早い。
+
+# --- 画像生成の本体 ---
+torch==2.13.0
+torchvision==0.28.0
+diffusers==0.39.0
+transformers==5.14.1
+accelerate==1.14.0
+safetensors==0.8.0
+peft==0.20.0
+huggingface_hub==1.26.0
+
+# --- ダッシュボード ---
+flask==3.1.3
+
+# --- 画像処理・拡大・顔検出・採点 ---
+pillow==12.3.0
+numpy==1.26.4
+spandrel==0.4.2
+ultralytics==8.4.115
+dghs-imgutils==0.19.0

@@ -1,0 +1,73 @@
+{
+  "_comment": "モデル台帳。source: hf-single(単一safetensors) / hf-diffusers(リポジトリ形式) / local(ローカルファイル)。sampler/cfg/stepsは各モデル配布元の推奨値（generate.pyの既定値として使われる）",
+  "femix-hassaku": {
+    "label": "FeMix HassakuXL v18（甘め濃いめ・商用フルOK）★見せる用の既定",
+    "source": "hf-diffusers",
+    "path": "John6666/femix-hassakuxl-v18-sdxl",
+    "quality": "masterpiece, best quality, very aesthetic, absurdres",
+    "negative": "worst quality, low quality, lowres, bad anatomy, bad hands, extra digits, missing fingers, watermark, signature, username, blurry, jpeg artifacts",
+    "vpred": false,
+    "sampler": "euler_a",
+    "cfg": 5.5,
+    "steps": 28,
+    "popularity": "DL 1.2万・👍500（Civitai・2026-08-02時点）",
+    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/9530fbe2-49ae-4040-bd81-91c0228134d9/original=true/98911810.jpeg",
+    "page": "https://civitai.com/models/1384794"
+  },
+  "nova-anime": {
+    "label": "Nova Anime XL ilV7（Illustrious系の横綱・DL45万）",
+    "source": "hf-diffusers",
+    "path": "votepurchase/novaAnimeXL_ilV70",
+    "quality": "masterpiece, best quality, very aesthetic, absurdres",
+    "negative": "worst quality, low quality, lowres, bad anatomy, bad hands, extra digits, missing fingers, watermark, signature, username, blurry, jpeg artifacts",
+    "vpred": false,
+    "sampler": "euler_a",
+    "cfg": 5.5,
+    "steps": 28,
+    "popularity": "DL 45.4万・👍1.9万（Civitai・2026-08-02時点）",
+    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c2ac76e4-8bcb-48c0-abde-a8594288bfef/original=true/130519340.jpeg",
+    "page": "https://civitai.com/models/376130"
+  },
+  "noobai": {
+    "label": "NoobAI-XL 1.1（透明感・LoRA学習の本籍地候補）",
+    "source": "local",
+    "path": "~/AI-Models/NoobAI-XL-v1.1.safetensors",
+    "quality": "masterpiece, best quality, newest, very awa, highres",
+    "negative": "worst quality, low quality, lowres, bad anatomy, bad hands, extra digits, missing fingers, watermark, signature, username, blurry, jpeg artifacts, oldest, early",
+    "vpred": false,
+    "sampler": "euler_a",
+    "cfg": 5.0,
+    "steps": 28,
+    "popularity": "DL 30.6万・👍1.9万（Civitai・2026-08-02時点）",
+    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/1d2e5702-a618-40e2-b83e-26569a753b0d/original=true/46921472.jpeg",
+    "page": "https://civitai.com/models/833294"
+  },
+  "illustrious": {
+    "label": "Illustrious XL v1.0（素体・LoRA学習ベース用）",
+    "source": "local",
+    "path": "~/AI-Models/Illustrious-XL-v1.0.safetensors",
+    "quality": "masterpiece, best quality, very aesthetic, absurdres",
+    "negative": "worst quality, low quality, lowres, bad anatomy, bad hands, extra digits, missing fingers, watermark, signature, username, blurry, jpeg artifacts",
+    "vpred": false,
+    "sampler": "euler_a",
+    "cfg": 5.5,
+    "steps": 26,
+    "popularity": "DL 17.7万・👍1.9万（Civitai・2026-08-02時点）",
+    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/ba3f42b7-a4e8-43a7-8b25-8b50708a85cb/original=true/31462610.jpeg",
+    "page": "https://civitai.com/models/795765"
+  },
+  "animagine": {
+    "label": "Animagine XL 4.0（濃いめの塗り・スキルカードの画風）",
+    "source": "hf-diffusers",
+    "path": "cagliostrolab/animagine-xl-4.0",
+    "quality": "masterpiece, high score, great score, absurdres",
+    "negative": "lowres, bad anatomy, bad hands, text, error, missing finger, extra digits, fewer digits, cropped, worst quality, low quality, low score, bad score, average score, signature, watermark, username, blurry",
+    "vpred": false,
+    "sampler": "euler_a",
+    "cfg": 6.0,
+    "steps": 26,
+    "popularity": "DL 9.2万・👍4.6千（Civitai・2026-08-02時点）",
+    "thumb": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/44382db0-b992-4058-b8b1-369a58cc2604/original=true/57571454.jpeg",
+    "page": "https://civitai.com/models/1188071"
+  }
+}
