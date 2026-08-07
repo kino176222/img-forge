@@ -9,7 +9,7 @@
   清書:      python generate.py -m femix-hassaku -p "..." --hires
   夜間100枚: python generate.py -m femix-hassaku -p "..." -c 100 --hires --job overnight
 """
-import argparse, datetime, gc, json, os, random, sys, time
+import argparse, datetime, gc, json, os, random, re, sys, time
 from pathlib import Path
 
 FORGE = Path(__file__).resolve().parent
@@ -52,6 +52,22 @@ def ensure_aux(path):
               f"           手動で置く場合はここへ: {path}\n"
               f"           入手先: {url}")
         return False
+
+
+def license_ok_for_commercial(text):
+    """台帳のlicense欄が「商用可」と読めるか。判定順は 不可 → 要確認 → 可。
+
+    「商用可否は明示なし」の“可”を拾って可と誤判定した事故があるため、
+    可の判定は「商用利用: 可」の形に限定する。曖昧なものは通さない。
+    """
+    if not text:
+        return False
+    if re.search(r"不可|禁止|non-?commercial", text, re.I):
+        return False
+    if re.search(r"要確認|不明|明示なし|確認すること", text):
+        return False
+    return bool(re.search(r"商用利用[ 　]*[:：]?[ 　]*可|商用利用は可|commercial use is allowed",
+                          text, re.I))
 
 
 def load_registry():
@@ -239,6 +255,9 @@ def main():
     ap.add_argument("--hires-scale", type=float, default=1.5)
     ap.add_argument("--hires-denoise", type=float, default=0.4)
     ap.add_argument("--no-face-fix", action="store_true", help="顔レタッチ段を切る")
+    ap.add_argument("--commercial", action="store_true",
+                    help="商用レーン。models.jsonのlicenseが商用可と読めないモデルを弾く"
+                         "（仕事用の絵を、うっかり商用不可モデルで焼かないための安全装置）")
     ap.add_argument("--score", action="store_true", help="採点を強制実行（8枚以上は自動）")
     ap.add_argument("--no-score", action="store_true",
                     help="自動採点をしない（採点モデルを外部から取得したくない場合）")
@@ -257,6 +276,19 @@ def main():
     registry = load_registry()
     if args.model not in registry:
         sys.exit(f"モデル '{args.model}' は未登録。候補: {', '.join(registry)}")
+
+    # 商用レーンの安全装置。仕事に使う絵を、うっかり商用不可モデルで焼かないため。
+    # 「曖昧なら通さない」で倒す（迷ったら止まるほうが、後から作り直すより安い）
+    if args.commercial:
+        lic = registry[args.model].get("license")
+        if not license_ok_for_commercial(lic):
+            ok = [k for k, v in registry.items() if license_ok_for_commercial(v.get("license"))]
+            sys.exit(
+                f"[img-forge] --commercial なので中止します。\n"
+                f"  モデル '{args.model}' のライセンス: {lic or '（models.jsonに記載なし）'}\n"
+                f"  商用可と読めるモデル: {', '.join(ok) if ok else '（台帳に無し）'}\n"
+                f"  ※判定はmodels.jsonのlicense欄の文字列によります。"
+                f"最終判断は配布ページを確認してください")
     cfg = registry[args.model]
     sampler = args.sampler or cfg.get("sampler", "euler_a")
     steps = args.steps or cfg.get("steps", 26)
