@@ -42,6 +42,7 @@ def main():
     ap.add_argument("--quality", default=DEFAULT_QUALITY, help="品質タグ（モデル配布ページ推奨に合わせる）")
     ap.add_argument("--negative", default=DEFAULT_NEG)
     ap.add_argument("--vpred", action="store_true", help="V-predictionモデルの場合に指定")
+    ap.add_argument("--civitai-id", help="CivitaiのモデルID（追加済み判定と配布ページのリンクに使う）")
     ap.add_argument("--license", default="配布ページで確認すること",
                     help="ライセンス（配布ページの記載。生成画像の商用可否を含めて書く）")
     ap.add_argument("--popularity", default=None, help="人気度メモ（DL数・👍等）")
@@ -105,6 +106,9 @@ def main():
     }
     if args.popularity:
         reg[args.name]["popularity"] = args.popularity
+    if args.civitai_id:
+        reg[args.name]["civitaiId"] = str(args.civitai_id)
+        reg[args.name]["page"] = f"https://civitai.com/models/{args.civitai_id}"
     REGISTRY.write_text(json.dumps(reg, ensure_ascii=False, indent=2) + "\n")
     print(f"[fetch] 登録完了: {args.name} ({size_gb:.1f}GB) → generate.py -m {args.name} で使用可")
 

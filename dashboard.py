@@ -9,7 +9,7 @@
 生成・DLジョブは共通FIFOキューで1本ずつ実行（GPU/回線の取り合い防止）。
 レビューの「ボツ」は output/_trash/ へ移動（即削除はしない）。採用は output/_picks/ へコピー。
 """
-import datetime, json, os, random, shutil, subprocess, threading, urllib.parse, urllib.request
+import datetime, json, os, random, re, shutil, subprocess, threading, urllib.parse, urllib.request
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file, abort
@@ -609,8 +609,27 @@ def models():
                     "popularity": cfg.get("popularity"),
                     "notes": cfg.get("notes"),
                     "license": cfg.get("license"),
+                    "civitaiId": cfg.get("civitaiId"),
                     "thumb": cfg.get("thumb"), "page": cfg.get("page")})
     return jsonify(out)
+
+
+def installed_civitai_ids():
+    """台帳に入っているCivitaiのモデルIDの集合。検索結果の「追加済み」判定に使う。
+
+    civitaiId が無い古い登録でも、page のURL末尾から拾う。
+    """
+    ids = set()
+    for cfg in load_registry().values():
+        cid = cfg.get("civitaiId")
+        if cid:
+            ids.add(str(cid))
+            continue
+        page = cfg.get("page") or ""
+        m = re.search(r"/models/(\d+)", page)
+        if m:
+            ids.add(m.group(1))
+    return ids
 
 
 def commercial_label(allow):
@@ -687,6 +706,9 @@ def civitai_search():
             "samples": samples,
             "page": f"https://civitai.com/models/{m.get('id')}",
         })
+    installed = installed_civitai_ids()
+    for it in items:
+        it["installed"] = str(it.get("id")) in installed
     return jsonify(items)
 
 
@@ -705,6 +727,8 @@ def model_add():
         cmd += ["--vpred"]
     if d.get("license"):
         cmd += ["--license", d["license"]]
+    if d.get("civitaiId"):
+        cmd += ["--civitai-id", str(d["civitaiId"])]
     if d.get("kind") == "lora":
         cmd += ["--as-lora"]
         jid, qlen = enqueue(cmd, f"dl-lora-{name}", f"LoRA DL {name}（数十MB）")
@@ -848,6 +872,7 @@ details.adv .inner{padding:0 12px 12px}
     <button class="chip" id="styledel" title="選択中のスタイルを削除">削除</button>
   </div>
   <label>モデル</label><select id="model"></select>
+  <div id="mlic" style="margin-top:5px"></div>
   <div id="mbanner" title="このモデルの公式作例。クリックで拡大"><img id="mprev" alt=""><div class="nm" id="mname"></div></div>
   <label title="描きたい内容だけ英語タグで書く（例: 1girl, kimono, night sky）。「masterpiece」等の品質タグと定番ネガティブはモデルごとに自動で付く">プロンプト（本文だけ。品質タグは自動）</label><textarea id="prompt">1girl, solo, cafe barista, green apron, holding coffee cup, gentle smile, backlighting, sunlight through window, light particles, cafe interior, upper body</textarea>
   <label title="絵柄・塗りを固定するタグ（プロンプト末尾に自動で付く）。Illustrious系は画風タグが無いと絵柄が毎回暴れるので、当たりの画風はここで固定する">画風タグ（絵柄の固定・任意）</label><input id="styletags" placeholder="例: watercolor (medium), soft lighting, pastel colors">
@@ -1115,6 +1140,11 @@ function updatePrev(){
   if(r){
     if(r.steps) $('steps').value=r.steps;
     if(r.cfg) $('cfg').value=r.cfg;
+  }
+  // 選んだ瞬間に商用可否が見えるようにする（仕事に使えるかは選ぶ時点で知りたい）
+  const lb=$('mlic');
+  if(lb){
+    lb.innerHTML = r ? `<span class="lic ${licClass(r.license)}" title="${(r.license||'ライセンス未記載').replace(/"/g,'')}｜最終判断は配布ページを見ること">${licShort(r.license)}</span>` : '';
   }
   const el=$('mbanner');
   if(r&&r.thumb){
@@ -1421,16 +1451,19 @@ async function civitai(){
     <div class="b"><div><div class="n">${m.name}</div>
     <div class="s">${m.base??''} ${m.version??''}｜DL ${m.downloads?.toLocaleString()??'?'}｜高評価 ${m.thumbs?.toLocaleString()??'?'}｜<a href="${m.page}" target="_blank" style="color:var(--acc)">Civitaiで見る</a></div>
     <div class="s" style="margin-top:4px"><span class="lic ${m.commercialLabel?.ok===true?'ok':(m.commercialLabel?.ok===false?'ng':'unk')}" title="Civitaiの申告値。最終判断は配布ページを見ること">${m.commercialLabel?.text??'商用: 不明'}</span></div></div>
-    <button onclick='addModel(${JSON.stringify(m.name)},${m.versionId},${m.downloads??0},${m.thumbs??0},$('ctype').value,${JSON.stringify(m.commercialLabel?.text??'')})'>追加（DLキューへ）</button></div></div>`).join('');
+    ${m.installed
+      ? `<button disabled title="この Civitai モデルは台帳にあります（モデルタブの手持ち一覧を確認）" style="opacity:.55;cursor:default">✓ 追加済み</button>`
+      : `<button onclick='addModel(${JSON.stringify(m.name)},${m.versionId},${m.downloads??0},${m.thumbs??0},$('ctype').value,${JSON.stringify(m.commercialLabel?.text??'')},${m.id})'>追加（DLキューへ）</button>`}
+    </div></div>`).join('');
 }
 $('csearch').onclick=civitai;
 let civitaiLoaded=false;
-async function addModel(label,versionId,dl,thumbs,mtype,lic){
+async function addModel(label,versionId,dl,thumbs,mtype,lic,cid){
   const name=prompt('登録名（英小文字とハイフン）',label.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20));
   if(!name)return;
   const pop=`DL ${dl.toLocaleString()}・高評価${thumbs.toLocaleString()}（Civitai）`;
   const kind=mtype==='LORA'?'lora':'model';
-  const j=await (await fetch('/api/models/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,label,versionId:String(versionId),popularity:pop,kind,license:lic||''})})).json();
+  const j=await (await fetch('/api/models/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,label,versionId:String(versionId),popularity:pop,kind,license:lic||'',civitaiId:cid?String(cid):''})})).json();
   alert(`DLキューに入れた: ${j.name}（待ち ${j.queued}件）。進み具合は「生成」タブの実況欄で見えるよ`);
 }
 let genSig='';
