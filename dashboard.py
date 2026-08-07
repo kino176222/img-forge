@@ -1460,12 +1460,18 @@ async function delLora(name){
 // ライセンス文から商用可否だけを抜き出す。全文はツールチップに出す
 function licClass(t){
   if(!t) return 'unk';
-  if(/不可|禁止|non-?commercial/i.test(t)) return 'ng';   // 「不可」を先に判定する
-  if(/商用[^。]*可|商用利用: 可|commercial/i.test(t)) return 'ok';
+  // 判定順が命。「不可」→「要確認」→「可」の順に見る。
+  // 「商用可否は明示なし」の“可”を拾って可と誤判定した事故があるため、
+  // 可の判定は「商用利用: 可」の形に限定する
+  if(/不可|禁止|non-?commercial/i.test(t)) return 'ng';
+  if(/要確認|不明|明示なし|確認すること/.test(t)) return 'unk';
+  if(/商用利用\s*[:：]?\s*可|商用利用は可|commercial use is allowed/i.test(t)) return 'ok';
   return 'unk';
 }
 function licShort(t){
   const c=licClass(t);
+  // 「未加工なら不可・加筆すれば可」のような条件つきを、全面禁止と混同させない
+  if(c==='ng' && /未加工|加筆|編集|条件|except|edited/i.test(t||'')) return '⚠ 商用: 条件つき';
   return c==='ng' ? '⚠ 商用利用: 不可' : (c==='ok' ? '商用利用: 可' : '商用: 要確認');
 }
 async function delModel(name){
