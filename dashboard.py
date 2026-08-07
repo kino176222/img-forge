@@ -608,8 +608,31 @@ def models():
                     "vpred": cfg.get("vpred", False),
                     "popularity": cfg.get("popularity"),
                     "notes": cfg.get("notes"),
+                    "license": cfg.get("license"),
                     "thumb": cfg.get("thumb"), "page": cfg.get("page")})
     return jsonify(out)
+
+
+def commercial_label(allow):
+    """CivitaiのallowCommercialUseを、判断できる日本語に翻訳する。
+
+    値は ["Image","RentCivit","Rent","Sell"] のような配列。
+    - Image  : 生成した画像の商用利用OK ← 大半の人が知りたいのはここ
+    - Rent   : 有料サービスでモデルを回してよい
+    - Sell   : モデル自体の販売OK
+    空配列や None は「不可（または未記載）」。Civitai側の記載漏れもあるので断定しない。
+    """
+    if allow is None:
+        return {"ok": None, "text": "商用: 不明（配布ページで確認）"}
+    if isinstance(allow, str):
+        allow = [allow]
+    if not allow or allow == ["None"]:
+        return {"ok": False, "text": "⚠ 商用利用: 不可"}
+    img_ok = any(a in ("Image", "Sell", "Rent", "RentCivit") for a in allow)
+    detail = "・".join(allow)
+    if "Image" in allow:
+        return {"ok": True, "text": f"商用: 生成画像OK（{detail}）"}
+    return {"ok": None if img_ok else False, "text": f"商用: 要確認（{detail}）"}
 
 
 @app.get("/api/civitai")
@@ -660,6 +683,7 @@ def civitai_search():
             "downloads": stats.get("downloadCount"),
             "thumbs": stats.get("thumbsUpCount"),
             "commercial": m.get("allowCommercialUse"),
+            "commercialLabel": commercial_label(m.get("allowCommercialUse")),
             "samples": samples,
             "page": f"https://civitai.com/models/{m.get('id')}",
         })
@@ -782,6 +806,11 @@ details.adv .inner{padding:0 12px 12px}
 .revbar{position:sticky;top:0;z-index:5;box-shadow:0 4px 16px rgba(0,0,0,.45)}
 .mrow{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
 .mrow .nm{font-weight:bold}.mrow .sub{font-size:11px;color:var(--mut)}
+/* 商用利用の可否バッジ。緑=生成画像OK / 赤=不可 / 灰=不明。判断は配布ページが正 */
+.lic{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle}
+.lic.ok{background:#1f3d29;color:#7fdca4;border:1px solid #2f6b45}
+.lic.ng{background:#4a2020;color:#ff9d9d;border:1px solid #7b3535}
+.lic.unk{background:#33312c;color:#bdb6a6;border:1px solid #4d4941}
 .mrow button{margin-left:auto;background:none;border:1px solid var(--line);color:var(--ng);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px}
 .cgrid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
 .cit{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#12141c}
@@ -1349,6 +1378,7 @@ async function loadModels(){
     <div><div class="nm">${m.label}</div>
     <div class="sub">-m ${m.name}｜${m.sizeGb?m.sizeGb+'GB':m.source}${m.vpred?'｜V-pred':''}${m.exists?'':'｜<span style="color:var(--ng)">ファイル無し</span>'}</div>
     ${m.popularity?`<div class="sub" style="color:#ffd54a">${m.popularity}</div>`:''}
+    <div class="sub" style="margin-top:3px"><span class="lic ${licClass(m.license)}" title="${(m.license||'ライセンス未記載').replace(/"/g,'')}｜models.jsonのlicense欄。最終判断は配布ページを見ること">${licShort(m.license)}</span></div>
     ${m.notes?`<div class="sub" style="color:var(--ok)">${m.notes}</div>`:''}</div>
     <button onclick="delModel('${m.name}')">削除</button></div>`).join('')
     +(ls.length?'<div style="font-size:12px;font-weight:bold;margin:14px 0 6px">LoRA置き場（味変パーツ）</div>'+
@@ -1362,6 +1392,17 @@ async function delLora(name){
   if(!confirm(`LoRA「${name}」を削除する？`))return;
   await fetch('/api/loras/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
   loadModels();loadLoras();
+}
+// ライセンス文から商用可否だけを抜き出す。全文はツールチップに出す
+function licClass(t){
+  if(!t) return 'unk';
+  if(/不可|禁止|non-?commercial/i.test(t)) return 'ng';   // 「不可」を先に判定する
+  if(/商用[^。]*可|商用利用: 可|commercial/i.test(t)) return 'ok';
+  return 'unk';
+}
+function licShort(t){
+  const c=licClass(t);
+  return c==='ng' ? '⚠ 商用利用: 不可' : (c==='ok' ? '商用利用: 可' : '商用: 要確認');
 }
 async function delModel(name){
   if(!confirm(`モデル「${name}」を削除する？（ファイルも消える・戻すには再DL）`))return;
@@ -1378,17 +1419,18 @@ async function civitai(){
   $('cgrid').innerHTML=items.map(m=>`<div class="cit">
     <div class="strip">${(m.samples||[]).map(u=>`<img loading="lazy" src="${u}" onclick="zoom('${u}')">`).join('')}</div>
     <div class="b"><div><div class="n">${m.name}</div>
-    <div class="s">${m.base??''} ${m.version??''}｜DL ${m.downloads?.toLocaleString()??'?'}｜高評価 ${m.thumbs?.toLocaleString()??'?'}｜<a href="${m.page}" target="_blank" style="color:var(--acc)">Civitaiで見る</a></div></div>
-    <button onclick='addModel(${JSON.stringify(m.name)},${m.versionId},${m.downloads??0},${m.thumbs??0},$('ctype').value)'>追加（DLキューへ）</button></div></div>`).join('');
+    <div class="s">${m.base??''} ${m.version??''}｜DL ${m.downloads?.toLocaleString()??'?'}｜高評価 ${m.thumbs?.toLocaleString()??'?'}｜<a href="${m.page}" target="_blank" style="color:var(--acc)">Civitaiで見る</a></div>
+    <div class="s" style="margin-top:4px"><span class="lic ${m.commercialLabel?.ok===true?'ok':(m.commercialLabel?.ok===false?'ng':'unk')}" title="Civitaiの申告値。最終判断は配布ページを見ること">${m.commercialLabel?.text??'商用: 不明'}</span></div></div>
+    <button onclick='addModel(${JSON.stringify(m.name)},${m.versionId},${m.downloads??0},${m.thumbs??0},$('ctype').value,${JSON.stringify(m.commercialLabel?.text??'')})'>追加（DLキューへ）</button></div></div>`).join('');
 }
 $('csearch').onclick=civitai;
 let civitaiLoaded=false;
-async function addModel(label,versionId,dl,thumbs,mtype){
+async function addModel(label,versionId,dl,thumbs,mtype,lic){
   const name=prompt('登録名（英小文字とハイフン）',label.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20));
   if(!name)return;
   const pop=`DL ${dl.toLocaleString()}・高評価${thumbs.toLocaleString()}（Civitai）`;
   const kind=mtype==='LORA'?'lora':'model';
-  const j=await (await fetch('/api/models/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,label,versionId:String(versionId),popularity:pop,kind})})).json();
+  const j=await (await fetch('/api/models/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,label,versionId:String(versionId),popularity:pop,kind,license:lic||''})})).json();
   alert(`DLキューに入れた: ${j.name}（待ち ${j.queued}件）。進み具合は「生成」タブの実況欄で見えるよ`);
 }
 let genSig='';
