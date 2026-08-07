@@ -632,7 +632,29 @@ def installed_civitai_ids():
     return ids
 
 
-def commercial_label(allow):
+# 説明文に商用制限が書かれているかを見るパターン。
+# Civitaiの構造化データ(allowCommercialUse)と、作者が本文に書いたルールは食い違う。
+# 実例: Nova Anime XL は allowCommercialUse に "Image" があるのに、本文には
+# "You cannot use the generated images for commercial use if it's not edited" とある
+# （2026-08-07確認）。構造化データだけを信じると「商用OK」と誤表示する。
+RESTRICT_RE = re.compile(
+    r"(cannot|can not|can't|not allowed|do not|don't|prohibit|forbidden|no)\s+"
+    r"[^.\n]{0,40}(commercial|monetiz)"
+    r"|non-?commercial"
+    r"|商用[^。\n]{0,10}(不可|禁止|できません|しないで)",
+    re.I,
+)
+
+
+def description_restricts(desc):
+    """説明文に商用制限らしき記述があるか。あれば申告値より安全側に倒す。"""
+    if not desc:
+        return False
+    text = re.sub(r"<[^>]+>", " ", desc)
+    return bool(RESTRICT_RE.search(text))
+
+
+def commercial_label(allow, desc=None):
     """CivitaiのallowCommercialUseを、判断できる日本語に翻訳する。
 
     値は ["Image","RentCivit","Rent","Sell"] のような配列。
@@ -640,18 +662,30 @@ def commercial_label(allow):
     - Rent   : 有料サービスでモデルを回してよい
     - Sell   : モデル自体の販売OK
     空配列や None は「不可（または未記載）」。Civitai側の記載漏れもあるので断定しない。
+
+    descを渡すと、本文の記述が申告値より優先される（安全側にだけ倒す）。
     """
+    restricted = description_restricts(desc)
     if allow is None:
-        return {"ok": None, "text": "商用: 不明（配布ページで確認）"}
-    if isinstance(allow, str):
-        allow = [allow]
-    if not allow or allow == ["None"]:
-        return {"ok": False, "text": "⚠ 商用利用: 不可"}
-    img_ok = any(a in ("Image", "Sell", "Rent", "RentCivit") for a in allow)
-    detail = "・".join(allow)
-    if "Image" in allow:
-        return {"ok": True, "text": f"商用: 生成画像OK（{detail}）"}
-    return {"ok": None if img_ok else False, "text": f"商用: 要確認（{detail}）"}
+        base = {"ok": None, "text": "商用: 不明（配布ページで確認）"}
+    else:
+        if isinstance(allow, str):
+            allow = [allow]
+        if not allow or allow == ["None"]:
+            base = {"ok": False, "text": "⚠ 商用利用: 不可"}
+        else:
+            img_ok = any(a in ("Image", "Sell", "Rent", "RentCivit") for a in allow)
+            detail = "・".join(allow)
+            if "Image" in allow:
+                base = {"ok": True, "text": f"商用: 生成画像OK（{detail}）"}
+            else:
+                base = {"ok": None if img_ok else False, "text": f"商用: 要確認（{detail}）"}
+    if restricted and base["ok"] is not False:
+        return {"ok": None,
+                "text": "⚠ 商用: 本文に制限あり（要確認）",
+                "note": "Civitaiの申告は「" + base["text"] + "」だが、"
+                        "モデルページ本文に商用を制限する記述がある。本文が優先される"}
+    return base
 
 
 @app.get("/api/civitai")
@@ -702,7 +736,7 @@ def civitai_search():
             "downloads": stats.get("downloadCount"),
             "thumbs": stats.get("thumbsUpCount"),
             "commercial": m.get("allowCommercialUse"),
-            "commercialLabel": commercial_label(m.get("allowCommercialUse")),
+            "commercialLabel": commercial_label(m.get("allowCommercialUse"), m.get("description")),
             "samples": samples,
             "page": f"https://civitai.com/models/{m.get('id')}",
         })
@@ -1450,7 +1484,7 @@ async function civitai(){
     <div class="strip">${(m.samples||[]).map(u=>`<img loading="lazy" src="${u}" onclick="zoom('${u}')">`).join('')}</div>
     <div class="b"><div><div class="n">${m.name}</div>
     <div class="s">${m.base??''} ${m.version??''}｜DL ${m.downloads?.toLocaleString()??'?'}｜高評価 ${m.thumbs?.toLocaleString()??'?'}｜<a href="${m.page}" target="_blank" style="color:var(--acc)">Civitaiで見る</a></div>
-    <div class="s" style="margin-top:4px"><span class="lic ${m.commercialLabel?.ok===true?'ok':(m.commercialLabel?.ok===false?'ng':'unk')}" title="Civitaiの申告値。最終判断は配布ページを見ること">${m.commercialLabel?.text??'商用: 不明'}</span></div></div>
+    <div class="s" style="margin-top:4px"><span class="lic ${m.commercialLabel?.ok===true?'ok':(m.commercialLabel?.ok===false?'ng':'unk')}" title="${(m.commercialLabel?.note||'Civitaiの申告値。最終判断は配布ページを見ること').replace(/"/g,'')}">${m.commercialLabel?.text??'商用: 不明'}</span></div></div>
     ${m.installed
       ? `<button disabled title="この Civitai モデルは台帳にあります（モデルタブの手持ち一覧を確認）" style="opacity:.55;cursor:default">✓ 追加済み</button>`
       : `<button onclick='addModel(${JSON.stringify(m.name)},${m.versionId},${m.downloads??0},${m.thumbs??0},$('ctype').value,${JSON.stringify(m.commercialLabel?.text??'')},${m.id})'>追加（DLキューへ）</button>`}

@@ -15,7 +15,7 @@
     "license": "Fair AI Public License 1.0-SD（生成画像の商用利用: 可）"
   },
   "nova-anime": {
-    "label": "Nova Anime XL ilV7（Illustrious系の定番・⚠生成画像の商用利用は不可）",
+    "label": "Nova Anime XL ilV7（Illustrious系の定番・⚠未加工画像の商用利用は不可）",
     "source": "hf-diffusers",
     "path": "votepurchase/novaAnimeXL_ilV70",
     "quality": "masterpiece, best quality, very aesthetic, absurdres",
@@ -26,7 +26,7 @@
     "steps": 28,
     "popularity": "DL 45.4万・👍1.9万（Civitai・2026-08-02時点）",
     "page": "https://civitai.com/models/376130",
-    "license": "Fair AI Public License 1.0-SD ＋作者による追記（⚠ 生成画像の商用利用は不可・クレジット要）"
+    "license": "Fair AI Public License 1.0-SD ＋作者ルール（⚠ 未加工の生成画像は商用不可。大きく加筆修正すれば可／クレジット不要・2026-08-07確認）"
   },
   "animagine": {
     "label": "Animagine XL 4.0（濃いめの塗り・スキルカードの画風）",
