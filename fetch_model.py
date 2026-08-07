@@ -42,6 +42,8 @@ def main():
     ap.add_argument("--quality", default=DEFAULT_QUALITY, help="品質タグ（モデル配布ページ推奨に合わせる）")
     ap.add_argument("--negative", default=DEFAULT_NEG)
     ap.add_argument("--vpred", action="store_true", help="V-predictionモデルの場合に指定")
+    ap.add_argument("--license", default="配布ページで確認すること",
+                    help="ライセンス（配布ページの記載。生成画像の商用可否を含めて書く）")
     ap.add_argument("--popularity", default=None, help="人気度メモ（DL数・👍等）")
     ap.add_argument("--as-lora", action="store_true",
                     help="LoRAとして~/AI-Models/lora/へ保存（台帳登録なし・generate.py --lora 名前 で使用）")
@@ -96,6 +98,7 @@ def main():
         "label": args.label or args.name,
         "source": "local",
         "path": str(path).replace(os.path.expanduser("~"), "~"),
+        "license": args.license,
         "quality": args.quality,
         "negative": args.negative,
         "vpred": args.vpred,

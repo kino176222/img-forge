@@ -299,7 +299,7 @@ def image_meta():
 
 @app.post("/api/variation")
 def variation():
-    """当たり画像の微調整ガチャ: シード固定＋ノイズslerp補間で兄弟を量産する"""
+    """当たり画像の兄弟生成: シード固定＋ノイズslerp補間で兄弟を量産する"""
     d = request.json or {}
     p = resolve_img(d.get("path", ""))
     if p is None:
@@ -419,7 +419,7 @@ def styles_delete():
     return jsonify({"ok": True})
 
 
-# ---------- XYZスイープ（新モデルの品定め） ----------
+# ---------- XYZスイープ（設定を総当たりで焼いて比較する） ----------
 # 設定を総当たりで焼いて比較表にする実験装置。X軸・Y軸に model / cfg / steps を割り当て、
 # シード固定で1セル1枚ずつキューに積む。結果は /sweep/<id> の比較ページで見る。
 
@@ -676,6 +676,11 @@ def model_add():
            "--civitai-version", d["versionId"], "--label", d.get("label", name)]
     if d.get("popularity"):
         cmd += ["--popularity", d["popularity"]]
+    # v-pred版を通常版として登録すると灰色の壊れた絵しか出ない。UIのチェックを渡す
+    if d.get("vpred"):
+        cmd += ["--vpred"]
+    if d.get("license"):
+        cmd += ["--license", d["license"]]
     if d.get("kind") == "lora":
         cmd += ["--as-lora"]
         jid, qlen = enqueue(cmd, f"dl-lora-{name}", f"LoRA DL {name}（数十MB）")

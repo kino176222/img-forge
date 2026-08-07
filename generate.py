@@ -240,10 +240,12 @@ def main():
     ap.add_argument("--hires-denoise", type=float, default=0.4)
     ap.add_argument("--no-face-fix", action="store_true", help="顔レタッチ段を切る")
     ap.add_argument("--score", action="store_true", help="採点を強制実行（8枚以上は自動）")
+    ap.add_argument("--no-score", action="store_true",
+                    help="自動採点をしない（採点モデルを外部から取得したくない場合）")
     ap.add_argument("--lora", action="append", default=[],
                     help="LoRA適用『名前:強度』（複数可・強度省略時0.8）。実体は~/AI-Models/lora/<名前>.safetensors")
     ap.add_argument("--vary", default=None,
-                    help="微調整ガチャ: 指定画像を出発点にimg2imgで「ほぼ同じだけど少し違う」兄弟を量産する"
+                    help="兄弟生成: 指定画像を出発点にimg2imgで「ほぼ同じだけど少し違う」兄弟を量産する"
                          "（惜しい絵の救済。強さは--variation-strength）")
     ap.add_argument("--variation-strength", type=float, default=0.45,
                     help="--vary時の変化の強さ=img2imgのdenoise（0.35微修正〜0.6大きめ。1.0で別画像）")
@@ -310,7 +312,7 @@ def main():
         except Exception as e:
             print(f"[img-forge] ⚠ 顔レタッチを初期化できませんでした（{e}）。顔補正なしで続行します")
 
-    # 微調整ガチャ（--vary）: 指定画像を出発点に、低denoiseのimg2imgで兄弟を量産する。
+    # 兄弟生成（--vary）: 指定画像を出発点に、低denoiseのimg2imgで兄弟を量産する。
     # 構図・色は元画像から引き継がれ、シード違いで細部だけ変わる（Fooocusの"Vary"と同方式）。
     # ※txt2imgのlatents指定によるslerp補間方式は、この環境（diffusers+MPS）で
     #   latents引数自体が壊れた絵を返すため不採用（2026-08-03実測）
@@ -323,7 +325,7 @@ def main():
             sys.exit(f"--varyの画像が見つからない: {src}")
         vary_img = PILImage.open(src).convert("RGB").resize((args.width, args.height))
         vary_pipe = StableDiffusionXLImg2ImgPipeline(**pipe.components)
-        print(f"[img-forge] 微調整ガチャ: {src.name} denoise={args.variation_strength}", flush=True)
+        print(f"[img-forge] 兄弟生成: {src.name} denoise={args.variation_strength}", flush=True)
 
     manifest = (outdir / "manifest.jsonl").open("a")
     done = 0
@@ -396,7 +398,7 @@ def main():
                 gc.collect(); torch.mps.empty_cache()
 
     print(f"[img-forge] 生成完走 {total}枚 / {time.time()-t0:.0f}s → {outdir}", flush=True)
-    if args.score or total >= 8:
+    if not args.no_score and (args.score or total >= 8):
         score_folder(outdir)
 
 
